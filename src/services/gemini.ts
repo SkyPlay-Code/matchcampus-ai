@@ -223,7 +223,7 @@ export const OPENING_MESSAGE = "Hey! I'm CampusMatch — your personal college c
 
 export async function* streamChat(history: { role: 'user' | 'model', content: string }[], newMessage: string) {
   const flashChat = ai.chats.create({
-    model: 'gemini-3-fIash-preview',
+    model: 'gemini-3-flash-preview',
     config: {
       systemInstruction: SYSTEM_INSTRUCTION,
       tools: [{
@@ -267,7 +267,7 @@ export async function* streamChat(history: { role: 'user' | 'model', content: st
     yield { text: '', isGeneratingList: true };
     
     const proChat = ai.chats.create({
-      model: 'gemini-3.1-pro-preview',
+      model: 'gemini-3-flash-preview',
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
         tools: [{ googleSearch: {} }],
