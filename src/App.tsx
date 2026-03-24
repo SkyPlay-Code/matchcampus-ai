@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Chat, Message } from './components/Chat';
 import { Results } from './components/Results';
-import { parseResults, ParsedResults } from './utils/parser';
+import { ParsedResults } from './utils/parser';
 import { auth, db, signIn, logOut, handleFirestoreError, OperationType } from './firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { collection, addDoc, serverTimestamp, query, where, getDocs, orderBy, limit, doc, updateDoc } from 'firebase/firestore';
@@ -70,12 +70,9 @@ export default function App() {
     return () => unsubscribe();
   }, [hasLoadedSession]);
 
-  const handleRecommendationReady = (text: string) => {
-    const parsed = parseResults(text);
-    if (parsed) {
-      setResults(parsed);
-      setShowResults(true);
-    }
+  const handleRecommendationReady = (parsed: ParsedResults) => {
+    setResults(parsed);
+    setShowResults(true);
   };
 
   const handleSave = async () => {
@@ -250,8 +247,8 @@ export default function App() {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 relative flex overflow-hidden">
-        <div className={`flex-1 transition-all duration-300 ${showResults ? 'md:mr-[60%]' : ''}`}>
+      <main className="flex-1 relative flex overflow-hidden bg-[#0a0f1c]">
+        <div className={`flex-1 transition-all duration-300 h-full ${showResults ? 'md:w-[42%] md:flex-none' : 'w-full'}`}>
           <Chat 
             messages={messages} 
             setMessages={setMessages} 
@@ -261,15 +258,22 @@ export default function App() {
 
         <AnimatePresence>
           {showResults && results && (
-            <Results 
-              results={results} 
-              onSave={handleSave} 
-              isSaving={isSaving} 
-              onClose={() => setShowResults(false)}
-              onAskAbout={handleAskAbout}
-              checklistState={checklistState}
-              onToggleChecklist={handleToggleChecklist}
-            />
+            <motion.div 
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="absolute inset-y-0 right-0 w-full md:w-[58%] md:relative z-30 shadow-2xl md:shadow-none"
+            >
+              <Results 
+                results={results} 
+                onSave={handleSave} 
+                onAskAbout={handleAskAbout}
+                checklistState={checklistState}
+                onToggleChecklist={handleToggleChecklist}
+                onClose={() => setShowResults(false)}
+              />
+            </motion.div>
           )}
         </AnimatePresence>
       </main>
