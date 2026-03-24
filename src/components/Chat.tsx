@@ -59,7 +59,7 @@ export function Chat({ messages, setMessages, onRecommendationReady }: ChatProps
         });
       }
       
-      if (aiResponse.includes('SECTION 2 — YOUR COLLEGE LIST')) {
+      if (aiResponse.includes('── YOUR COLLEGE LIST ──')) {
         onRecommendationReady(aiResponse);
       }
       

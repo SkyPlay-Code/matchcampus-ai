@@ -17,10 +17,13 @@ service cloud.firestore {
     // Fields:
     //   - userId: string (required, immutable, matches owner UID)
     //   - conversationHistory: list (required, < 100 items)
-    //   - profileSummary: string (required, < 5000 chars)
+    //   - studentStory: string (required, < 5000 chars)
     //   - collegeList: list (required, < 50 items)
-    //   - nextSteps: list (optional, < 20 items)
+    //   - roadmap: list (optional, < 20 items)
+    //   - rightNow: list (optional, < 20 items)
+    //   - checklistState: map (optional)
     //   - createdAt: timestamp (required, immutable)
+    //   - updatedAt: timestamp (required)
     // ===============================================================
 
     // Helper Functions
@@ -58,13 +61,16 @@ service cloud.firestore {
 
     function isValidSession() {
       let data = request.resource.data;
-      return hasOnlyAllowedFields(['userId', 'conversationHistory', 'profileSummary', 'collegeList', 'nextSteps', 'createdAt']) &&
+      return hasOnlyAllowedFields(['userId', 'conversationHistory', 'studentStory', 'collegeList', 'roadmap', 'rightNow', 'checklistState', 'createdAt', 'updatedAt']) &&
              data.userId is string && data.userId == request.auth.uid &&
              data.conversationHistory is list && data.conversationHistory.size() <= 100 &&
-             data.profileSummary is string && data.profileSummary.size() <= 5000 &&
+             data.studentStory is string && data.studentStory.size() <= 5000 &&
              data.collegeList is list && data.collegeList.size() <= 50 &&
-             (!('nextSteps' in data) || (data.nextSteps is list && data.nextSteps.size() <= 20)) &&
-             data.createdAt is timestamp;
+             (!('roadmap' in data) || (data.roadmap is list && data.roadmap.size() <= 20)) &&
+             (!('rightNow' in data) || (data.rightNow is list && data.rightNow.size() <= 20)) &&
+             (!('checklistState' in data) || data.checklistState is map) &&
+             data.createdAt is timestamp &&
+             data.updatedAt is timestamp;
     }
 
     match /users/{userId} {

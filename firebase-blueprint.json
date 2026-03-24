@@ -29,27 +29,36 @@
             "required": ["role", "content"]
           }
         },
-        "profileSummary": { "type": "string", "description": "The AI-generated profile summary." },
+        "studentStory": { "type": "string", "description": "The AI-generated student story." },
         "collegeList": {
           "type": "array",
           "items": {
             "type": "object",
             "properties": {
               "name": { "type": "string" },
-              "tier": { "type": "string", "enum": ["reach", "match", "safety"] },
+              "tier": { "type": "string", "enum": ["dream", "reach", "match", "safety"] },
               "reason": { "type": "string" },
               "deepDive": { "type": "object" }
             },
             "required": ["name", "tier", "reason"]
           }
         },
-        "nextSteps": {
+        "roadmap": {
           "type": "array",
           "items": { "type": "string" }
         },
-        "createdAt": { "type": "string", "format": "date-time", "description": "When the session was saved." }
+        "rightNow": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "checklistState": {
+          "type": "object",
+          "additionalProperties": { "type": "boolean" }
+        },
+        "createdAt": { "type": "string", "format": "date-time", "description": "When the session was saved." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "When the session was last updated." }
       },
-      "required": ["userId", "conversationHistory", "profileSummary", "collegeList", "createdAt"]
+      "required": ["userId", "conversationHistory", "studentStory", "collegeList", "createdAt", "updatedAt"]
     }
   },
   "firestore": {

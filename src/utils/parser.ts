@@ -1,6 +1,6 @@
 export interface College {
   name: string;
-  tier: 'reach' | 'match' | 'safety';
+  tier: 'dream' | 'reach' | 'match' | 'safety';
   reason: string;
   deepDive?: {
     whyFit: string;
@@ -12,25 +12,47 @@ export interface College {
   };
 }
 
-export function parseCollegeList(text: string): College[] {
-  const colleges: College[] = [];
+export interface ParsedResults {
+  story: string;
+  colleges: College[];
+  roadmap: string[];
+  rightNow: string[];
+}
+
+export function parseResults(text: string): ParsedResults | null {
+  const storyMatch = text.indexOf('── YOUR STORY ──');
+  const listMatch = text.indexOf('── YOUR COLLEGE LIST ──');
+  const roadmapMatch = text.indexOf('── YOUR ROADMAP ──');
+  const strategyMatch = text.indexOf('── YOUR APPLICATION STRATEGY ──');
+  const rightNowMatch = text.indexOf('── RIGHT NOW ──');
+
+  if (listMatch === -1) return null;
+
+  const result: ParsedResults = {
+    story: '',
+    colleges: [],
+    roadmap: [],
+    rightNow: []
+  };
+
+  // Parse Story
+  if (storyMatch !== -1) {
+    const endIdx = listMatch !== -1 ? listMatch : text.length;
+    result.story = text.substring(storyMatch + '── YOUR STORY ──'.length, endIdx).trim();
+  }
+
+  // Parse College List
+  const listEndIdx = roadmapMatch !== -1 ? roadmapMatch : (strategyMatch !== -1 ? strategyMatch : (rightNowMatch !== -1 ? rightNowMatch : text.length));
+  const listText = text.substring(listMatch + '── YOUR COLLEGE LIST ──'.length, listEndIdx).trim();
   
-  const section2Match = text.indexOf('SECTION 2 — YOUR COLLEGE LIST');
-  if (section2Match === -1) return colleges;
-  
-  const section3Match = text.indexOf('SECTION 3 — DEEP DIVES');
-  const section4Match = text.indexOf('SECTION 4 — NEXT STEPS');
-  
-  const listText = text.substring(
-    section2Match, 
-    section3Match !== -1 ? section3Match : (section4Match !== -1 ? section4Match : text.length)
-  );
-  
-  let currentTier: 'reach' | 'match' | 'safety' | null = null;
-  
+  let currentTier: 'dream' | 'reach' | 'match' | 'safety' | null = null;
   const lines = listText.split('\n').map(l => l.trim()).filter(l => l);
+  
   for (const line of lines) {
-    if (line.toUpperCase().includes('REACH (')) {
+    if (line.toUpperCase().includes('DREAM (')) {
+      currentTier = 'dream';
+      continue;
+    } else if (line.toUpperCase().includes('REACH (')) {
       currentTier = 'reach';
       continue;
     } else if (line.toUpperCase().includes('MATCH (')) {
@@ -41,48 +63,47 @@ export function parseCollegeList(text: string): College[] {
       continue;
     }
     
-    if (currentTier && line.includes('—') && !line.toUpperCase().startsWith('SECTION')) {
-      // Parse [School Name] — [Reason]
-      // Sometimes it might have bolding like **School Name** — Reason
+    if (currentTier && line.includes('—') && !line.startsWith('──')) {
       const parts = line.split('—');
       if (parts.length >= 2) {
         let name = parts[0].trim().replace(/\*\*/g, '').replace(/^- /g, '').trim();
         let reason = parts.slice(1).join('—').trim();
         if (name && reason) {
-          colleges.push({ name, tier: currentTier, reason });
+          result.colleges.push({ name, tier: currentTier, reason });
         }
       }
     }
   }
-  
-  // Parse deep dives if available
-  if (section3Match !== -1) {
-    const deepDiveText = text.substring(
-      section3Match,
-      section4Match !== -1 ? section4Match : text.length
-    );
+
+  // Parse Roadmap
+  if (roadmapMatch !== -1) {
+    const endIdx = strategyMatch !== -1 ? strategyMatch : (rightNowMatch !== -1 ? rightNowMatch : text.length);
+    const roadmapText = text.substring(roadmapMatch + '── YOUR ROADMAP ──'.length, endIdx).trim();
+    result.roadmap = roadmapText.split('\n').map(l => l.trim().replace(/^- /g, '').replace(/^\d+\.\s*/g, '')).filter(l => l);
+  }
+
+  // Parse Strategy (Deep Dives)
+  if (strategyMatch !== -1) {
+    const endIdx = rightNowMatch !== -1 ? rightNowMatch : text.length;
+    const strategyText = text.substring(strategyMatch + '── YOUR APPLICATION STRATEGY ──'.length, endIdx).trim();
     
-    // This is a rough parser for deep dives. It looks for school names that match the list.
-    for (let i = 0; i < colleges.length; i++) {
-      const college = colleges[i];
-      // Look for the college name in the deep dive section
-      // It might be bolded or have a number before it
+    for (let i = 0; i < result.colleges.length; i++) {
+      const college = result.colleges[i];
       const nameRegex = new RegExp(`(?:\\*\\*|\\d+\\.\\s*\\*\\*|\\n\\s*)${escapeRegExp(college.name)}(?:\\*\\*|\\n|:)`, 'i');
-      const match = deepDiveText.match(nameRegex);
+      const match = strategyText.match(nameRegex);
       
       if (match) {
         const startIndex = match.index! + match[0].length;
-        // Find the next college name or end of section to bound the search
-        let endIndex = deepDiveText.length;
-        for (let j = 0; j < colleges.length; j++) {
+        let endIndex = strategyText.length;
+        for (let j = 0; j < result.colleges.length; j++) {
           if (i === j) continue;
-          const nextMatch = deepDiveText.substring(startIndex).match(new RegExp(`(?:\\*\\*|\\d+\\.\\s*\\*\\*|\\n\\s*)${escapeRegExp(colleges[j].name)}(?:\\*\\*|\\n|:)`, 'i'));
+          const nextMatch = strategyText.substring(startIndex).match(new RegExp(`(?:\\*\\*|\\d+\\.\\s*\\*\\*|\\n\\s*)${escapeRegExp(result.colleges[j].name)}(?:\\*\\*|\\n|:)`, 'i'));
           if (nextMatch && nextMatch.index! < endIndex) {
             endIndex = startIndex + nextMatch.index!;
           }
         }
         
-        const diveContent = deepDiveText.substring(startIndex, endIndex);
+        const diveContent = strategyText.substring(startIndex, endIndex);
         
         const extractField = (fieldName: string) => {
           const regex = new RegExp(`${fieldName}:\\s*(.*?)(?=\\n[A-Z\\s]+:|$)`, 'is');
@@ -103,8 +124,15 @@ export function parseCollegeList(text: string): College[] {
       }
     }
   }
-  
-  return colleges;
+
+  // Parse Right Now
+  if (rightNowMatch !== -1) {
+    const rightNowText = text.substring(rightNowMatch + '── RIGHT NOW ──'.length).trim();
+    result.rightNow = rightNowText.split('\n').map(l => l.trim().replace(/^- /g, '').replace(/^\d+\.\s*/g, '').replace(/^\[\]\s*/g, '')).filter(l => l);
+  }
+
+  if (result.colleges.length === 0) return null;
+  return result;
 }
 
 function escapeRegExp(string: string) {
