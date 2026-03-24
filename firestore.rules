@@ -1,0 +1,84 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    // Collection: users
+    // Document ID: user UID
+    // Fields:
+    //   - name: string (required, < 100 chars)
+    //   - email: string (required, valid email)
+    //   - createdAt: timestamp (required, immutable)
+    //   - lastSession: timestamp (optional)
+    //
+    // Collection: sessions
+    // Document ID: auto-generated
+    // Fields:
+    //   - userId: string (required, immutable, matches owner UID)
+    //   - conversationHistory: list (required, < 100 items)
+    //   - profileSummary: string (required, < 5000 chars)
+    //   - collegeList: list (required, < 50 items)
+    //   - nextSteps: list (optional, < 20 items)
+    //   - createdAt: timestamp (required, immutable)
+    // ===============================================================
+
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.userId;
+    }
+    function uidNotModified() {
+      return !('userId' in request.resource.data) || request.resource.data.userId == resource.data.userId;
+    }
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    // Domain Validators
+    function isValidUser() {
+      let data = request.resource.data;
+      return hasOnlyAllowedFields(['name', 'email', 'createdAt', 'lastSession']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.email is string && isValidEmail(data.email) &&
+             data.createdAt is timestamp &&
+             (!('lastSession' in data) || data.lastSession is timestamp);
+    }
+
+    function isValidSession() {
+      let data = request.resource.data;
+      return hasOnlyAllowedFields(['userId', 'conversationHistory', 'profileSummary', 'collegeList', 'nextSteps', 'createdAt']) &&
+             data.userId is string && data.userId == request.auth.uid &&
+             data.conversationHistory is list && data.conversationHistory.size() <= 100 &&
+             data.profileSummary is string && data.profileSummary.size() <= 5000 &&
+             data.collegeList is list && data.collegeList.size() <= 50 &&
+             (!('nextSteps' in data) || (data.nextSteps is list && data.nextSteps.size() <= 20)) &&
+             data.createdAt is timestamp;
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidUser();
+      allow update: if isOwner(userId) && isValidUser() && request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if false;
+    }
+
+    match /sessions/{sessionId} {
+      allow read: if isDocOwner();
+      allow create: if isAuthenticated() && isValidSession() && request.resource.data.userId == request.auth.uid;
+      allow update: if isDocOwner() && isValidSession() && request.resource.data.createdAt == resource.data.createdAt && uidNotModified();
+      allow delete: if isDocOwner();
+    }
+  }
+}
